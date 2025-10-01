@@ -1,0 +1,19 @@
+{
+    "uuid": "appimage-manager@ignaci0",
+    "name": "AppImage Manager",
+    "description": "Automatically integrates AppImage applications into the GNOME application launcher.",
+    "author": "ignaci0",
+    "shell-version": [
+        "40",
+        "41",
+        "42",
+        "43",
+        "44",
+        "45",
+        "46",
+        "47",
+        "48"
+    ],
+    "url": "https://github.com/ignaci0/appimage-manager",
+    "settings-schema": "org.gnome.shell.extensions.appimage-manager"
+}

@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<schemalist>
+  <schema id="org.gnome.shell.extensions.appimage-manager" path="/org/gnome/shell/extensions/appimage-manager/">
+    <key name="monitored-directory" type="s">
+      <default>''</default>
+      <summary>Directory to monitor for AppImage files</summary>
+      <description>The absolute path to the directory where AppImage files are stored and monitored for changes.</description>
+    </key>
+  </schema>
+</schemalist>
