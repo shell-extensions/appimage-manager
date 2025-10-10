@@ -10,5 +10,6 @@
         "48"
     ],
     "url": "https://github.com/ignaci0/appimage-manager",
-    "settings-schema": "org.gnome.shell.extensions.appimage-manager"
+    "settings-schema": "org.gnome.shell.extensions.appimage-manager",
+    "license": "MIT"
 }
