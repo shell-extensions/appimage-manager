@@ -1,4 +1,3 @@
-console.log('AppImage Manager extension file is being read');
 import {Extension} from 'resource:///org/gnome/shell/extensions/extension.js';
 import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
@@ -12,14 +11,15 @@ import { log, logError } from './logger.js';
 export default class AppImageManagerExtension extends Extension {
     constructor(metadata) {
         super(metadata);
-        this._settingsManager = new SettingsManager(this);
-        this._fileMonitor = new FileMonitor();
-        this._appImageManager = new AppImageManager(this._fileMonitor);
-        this._launcherService = new LauncherService();
     }
 
     async enable() {
         log(`Enabling ${this.metadata.name} extension`);
+
+        this._settingsManager = new SettingsManager(this);
+        this._fileMonitor = new FileMonitor();
+        this._appImageManager = new AppImageManager(this._fileMonitor);
+        this._launcherService = new LauncherService();
 
         let monitoredDirectory = this._settingsManager.getMonitoredDirectory();
 
@@ -74,5 +74,10 @@ export default class AppImageManagerExtension extends Extension {
             }
             enumerator.close(null);
         }
+
+        this._launcherService = null;
+        this._appImageManager = null;
+        this._fileMonitor = null;
+        this._settingsManager = null;
     }
 }

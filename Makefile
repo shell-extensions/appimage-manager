@@ -9,12 +9,13 @@ uninstall:
 	gnome-extensions uninstall $(UUID)
 
 build: 
-	glib-compile-schemas src/schemas/
+	echo Nothing to do
+	#glib-compile-schemas src/schemas/
 
 zip: build
 	rm -f $(UUID).zip
 	cd src && zip -r ../$(UUID).zip .
-	zip -ur $(UUID).zip metadata.json extension.js prefs.js README.md .eslintrc.json .prettierrc.json
+	zip -ur $(UUID).zip metadata.json extension.js prefs.js README.md 
 
 clean:
 	rm -f $(UUID).zip
