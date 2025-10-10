@@ -8,6 +8,8 @@ export class FileMonitor {
         this._directory = null;
         this._onFileAdded = null;
         this._onFileRemoved = null;
+        this._timeoutId = null;
+        this._addedFiles = [];
     }
 
     startMonitoring(directoryPath, onFileAdded, onFileRemoved) {
@@ -37,25 +39,48 @@ export class FileMonitor {
                     break;
                 case Gio.FileMonitorEvent.CREATED:
                     {
-                        GLib.timeout_add(GLib.PRIORITY_DEFAULT, 500, () => {
-                            const filePath = file.get_path();
-                            if (filePath.endsWith('.desktop')) {
-                                try {
-                                    const [success, contents] = file.load_contents(null);
-                                    if (success) {
-                                        const decoder = new TextDecoder('utf-8');
-                                        const contentsStr = decoder.decode(contents);
-                                        if (contentsStr.includes('# Created by AppImage Manager')) {
-                                            return GLib.SOURCE_REMOVE; // Ignore file created by the extension
+                        const filePath = file.get_path();
+                        if (!this._addedFiles.includes(filePath)) {
+                            this._addedFiles.push(filePath);
+                        }
+
+                        if (this._timeoutId) {
+                            GLib.source_remove(this._timeoutId);
+                        }
+
+                        this._timeoutId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 500, () => {
+                            this._timeoutId = null; // It's a one-shot timeout
+                            const filesToAdd = [...this._addedFiles];
+                            this._addedFiles = []; // Clear the array
+
+                            for (const addedFilePath of filesToAdd) {
+                                if (addedFilePath.endsWith('.desktop')) {
+                                    const desktopFile = Gio.File.new_for_path(addedFilePath);
+                                    desktopFile.load_contents_async(null, (f, res) => {
+                                        let isFromManager = false;
+                                        try {
+                                            const [success, contents] = f.load_contents_finish(res);
+                                            if (success) {
+                                                const contentsStr = new TextDecoder('utf-8').decode(contents);
+                                                if (contentsStr.includes('# Created by AppImage Manager')) {
+                                                    isFromManager = true;
+                                                }
+                                            }
+                                        } catch (e) {
+                                            logError(`Could not read ${addedFilePath}: ${e.message}`);
                                         }
+
+                                        if (!isFromManager && this._onFileAdded) {
+                                            this._onFileAdded(addedFilePath);
+                                        }
+                                    });
+                                } else {
+                                    if (this._onFileAdded) {
+                                        this._onFileAdded(addedFilePath);
                                     }
-                                } catch (e) {
-                                    logError(`Failed to read file ${filePath}: ${e.message}`);
                                 }
                             }
-                            if (this._onFileAdded) {
-                                this._onFileAdded(filePath);
-                            }
+
                             return GLib.SOURCE_REMOVE;
                         });
                     }
@@ -78,6 +103,10 @@ export class FileMonitor {
             this._monitor.cancel();
             this._monitor = null;
             log(`Stopped monitoring directory: ${this._directory.get_path()}`);
+        }
+        if (this._timeoutId) {
+            GLib.source_remove(this._timeoutId);
+            this._timeoutId = null;
         }
     }
 

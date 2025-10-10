@@ -3,18 +3,7 @@ import GLib from 'gi://GLib';
 
 export class SettingsManager {
     constructor(extension) {
-        this._settings = this._getSettings(extension);
-    }
-
-    _getSettings(extension) {
-        let schemaId = 'org.gnome.shell.extensions.appimage-manager';
-        return new Gio.Settings({
-            settings_schema: Gio.SettingsSchemaSource.new_from_directory(
-                extension.dir.get_child('schemas').get_path(),
-                null,
-                false
-            ).lookup(schemaId, true)
-        });
+        this._settings = extension.getSettings();
     }
 
     getMonitoredDirectory() {

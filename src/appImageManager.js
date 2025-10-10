@@ -2,14 +2,21 @@ import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
 import { LauncherService } from './launcherService.js';
 import { log, logError } from './logger.js';
+import { CacheManager } from './cacheManager.js';
 
 export class AppImageManager {
     constructor(fileMonitor) {
         this._launcherService = new LauncherService();
         this._fileMonitor = fileMonitor;
+        this._cacheManager = new CacheManager();
     }
 
     async addAppImage(filePath) {
+        if (this._cacheManager.get(filePath)) {
+            log(`Skipping already cached AppImage: ${filePath}`);
+            return;
+        }
+
         if (!this.isAppImage(filePath)) {
             return;
         }
@@ -22,19 +29,21 @@ export class AppImageManager {
         }
 
         this._launcherService.createLauncher(metadata);
+        this._cacheManager.add({ path: filePath, name: metadata.name });
 
         if (this._fileMonitor) {
             this._fileMonitor.resume();
         }
     }
 
-    removeAppImage(filePath) {
+    async removeAppImage(filePath) {
         if (!this.isAppImage(filePath)) {
             return;
         }
 
-        const metadata = this.extractMetadata(filePath);
+        const metadata = await this.extractMetadata(filePath);
         this._launcherService.deleteLauncher(metadata.name);
+        this._cacheManager.remove(filePath);
     }
 
     isAppImage(filePath) {
@@ -140,6 +149,7 @@ export class AppImageManager {
 
             return { name: appName, icon: newIconFile.get_path() };
         } finally {
+            log(`Deleting directory: ${tempDir.get_path()}`);
             this._deleteDirectoryRecursive(tempDir);
         }
     }
@@ -274,7 +284,6 @@ export class AppImageManager {
     }
 
     _deleteDirectoryRecursive(directory) {
-        log(`Deleting directory: ${directory.get_path()}`);
         let enumerator;
         try {
             enumerator = directory.enumerate_children('standard::name,standard::type', Gio.FileQueryInfoFlags.NONE, null);
@@ -302,6 +311,29 @@ export class AppImageManager {
             directory.delete(null);
         } catch (e) {
             logError(`Failed to delete directory ${directory.get_path()}: ${e.message}`);
+        }
+    }
+
+    async rescan(directory) {
+        const directoryFile = Gio.File.new_for_path(directory);
+        const enumerator = directoryFile.enumerate_children('standard::name', Gio.FileQueryInfoFlags.NONE, null);
+        let fileInfo;
+        const filesInDirectory = new Set();
+
+        while ((fileInfo = enumerator.next_file(null)) !== null) {
+            const fileName = fileInfo.get_name();
+            const filePath = GLib.build_pathv('/', [directory, fileName]);
+            filesInDirectory.add(filePath);
+            if (this.isAppImage(filePath)) {
+                await this.addAppImage(filePath);
+            }
+        }
+
+        const cachedAppImages = this._cacheManager.getAll();
+        for (const appImagePath in cachedAppImages) {
+            if (!filesInDirectory.has(appImagePath)) {
+                await this.removeAppImage(appImagePath);
+            }
         }
     }
 }

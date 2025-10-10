@@ -23,36 +23,17 @@ export default class AppImageManagerExtension extends Extension {
 
         let monitoredDirectory = this._settingsManager.getMonitoredDirectory();
 
+        await this._appImageManager.rescan(monitoredDirectory);
+
         this._fileMonitor.startMonitoring(
             monitoredDirectory,
             (filePath) => {
                 this._appImageManager.addAppImage(filePath);
             },
-            async (filePath) => {
-                try {
-                    let metadata = await this._appImageManager.extractMetadata(filePath);
-                    this._launcherService.deleteLauncher(metadata.name);
-                } catch (e) {
-                    logError(`Failed to process AppImage ${filePath}: ${e.message}`);
-                }
+            (filePath) => {
+                this._appImageManager.removeAppImage(filePath);
             }
         );
-
-        let dir = Gio.File.new_for_path(monitoredDirectory);
-        if (dir.query_exists(null)) {
-            let enumerator = dir.enumerate_children('standard::name,standard::type', Gio.FileQueryInfoFlags.NONE, null);
-            let files = [];
-            let fileInfo;
-            while ((fileInfo = enumerator.next_file(null)) !== null) {
-                files.push(fileInfo);
-            }
-            enumerator.close(null);
-
-            for (const fileInfo of files) {
-                let child = dir.get_child(fileInfo.get_name());
-                this._appImageManager.addAppImage(child.get_path());
-            }
-        }
     }
 
     disable() {
