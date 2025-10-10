@@ -1,6 +1,6 @@
 {
   "name": "appimg-manager",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "AppImage Manager Gnome Extension",
   "main": "extension.js",
   "scripts": {
