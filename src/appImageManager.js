@@ -12,7 +12,7 @@ export class AppImageManager {
     }
 
     async addAppImage(filePath) {
-        if (this._cacheManager.get(filePath)) {
+        if (await this._cacheManager.get(filePath)) {
             log(`Skipping already cached AppImage: ${filePath}`);
             return;
         }
@@ -29,7 +29,7 @@ export class AppImageManager {
         }
 
         this._launcherService.createLauncher(metadata);
-        this._cacheManager.add({ path: filePath, name: metadata.name });
+        await this._cacheManager.add({ path: filePath, name: metadata.name });
 
         if (this._fileMonitor) {
             this._fileMonitor.resume();
@@ -43,7 +43,7 @@ export class AppImageManager {
 
         const metadata = await this.extractMetadata(filePath);
         this._launcherService.deleteLauncher(metadata.name);
-        this._cacheManager.remove(filePath);
+        await this._cacheManager.remove(filePath);
     }
 
     isAppImage(filePath) {
@@ -130,7 +130,7 @@ export class AppImageManager {
                 return null;
             }
 
-            const desktopFileMetadata = this._findAndParseDesktopFile(squashfsRoot);
+            const desktopFileMetadata = await this._findAndParseDesktopFile(squashfsRoot);
             const appName = desktopFileMetadata ? desktopFileMetadata.name : null;
 
             let iconPath = this._findIcon(squashfsRoot, desktopFileMetadata ? desktopFileMetadata.icon : null);
@@ -154,7 +154,7 @@ export class AppImageManager {
         }
     }
 
-    _findAndParseDesktopFile(squashfsRoot) {
+    async _findAndParseDesktopFile(squashfsRoot) {
         let enumerator = squashfsRoot.enumerate_children('standard::name', Gio.FileQueryInfoFlags.NONE, null);
         let fileInfo;
         let desktopFile = null;
@@ -173,8 +173,22 @@ export class AppImageManager {
         }
 
         try {
-            let [success, contents] = desktopFile.load_contents(null);
-            if (!success) {
+            const contents = await new Promise((resolve, reject) => {
+                desktopFile.load_contents_async(null, (file, res) => {
+                    try {
+                        let [success, contents] = file.load_contents_finish(res);
+                        if (success) {
+                            resolve(contents);
+                        } else {
+                            resolve(null);
+                        }
+                    } catch (e) {
+                        reject(e);
+                    }
+                });
+            });
+
+            if (!contents) {
                 return null;
             }
 
@@ -329,7 +343,7 @@ export class AppImageManager {
             }
         }
 
-        const cachedAppImages = this._cacheManager.getAll();
+        const cachedAppImages = await this._cacheManager.getAll();
         for (const appImagePath in cachedAppImages) {
             if (!filesInDirectory.has(appImagePath)) {
                 await this.removeAppImage(appImagePath);

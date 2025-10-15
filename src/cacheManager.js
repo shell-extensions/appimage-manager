@@ -15,59 +15,83 @@ export var CacheManager = GObject.registerClass({
             GLib.get_user_cache_dir() + '/appimage-manager/cache.json'
         );
         this._cache = {};
-        this._loadCache();
+        this._cacheLoaded = this._loadCache();
     }
 
     _loadCache() {
-        if (!this._cacheFile.query_exists(null)) {
-            log('Cache file does not exist. Creating it.');
-            this._cacheFile.get_parent().make_directory_with_parents(null);
-            this._cacheFile.create(Gio.FileCreateFlags.NONE, null);
-            this._saveCache();
-        } else {
-            try {
-                let [ok, contents] = this._cacheFile.load_contents(null);
-                if (ok) {
-                    const decoder = new TextDecoder('utf-8');
-                    const contentsStr = decoder.decode(contents);
-                    this._cache = JSON.parse(contentsStr);
-                }
-            } catch (e) {
-                logError('Failed to load cache: ' + e);
+        return new Promise((resolve) => {
+            if (!this._cacheFile.query_exists(null)) {
+                log('Cache file does not exist. Creating it.');
+                this._cacheFile.get_parent().make_directory_with_parents(null);
+                this._cacheFile.create(Gio.FileCreateFlags.NONE, null);
+                this._saveCache().then(() => resolve());
+            } else {
+                this._cacheFile.load_contents_async(null, (file, res) => {
+                    try {
+                        let [ok, contents] = file.load_contents_finish(res);
+                        if (ok && contents) {
+                            const decoder = new TextDecoder('utf-8');
+                            const contentsStr = decoder.decode(contents);
+                            if (contentsStr) {
+                                this._cache = JSON.parse(contentsStr);
+                            }
+                        }
+                    } catch (e) {
+                        logError('Failed to load cache: ' + e);
+                    } finally {
+                        resolve();
+                    }
+                });
             }
-        }
+        });
     }
 
     _saveCache() {
-        try {
-            let contents = JSON.stringify(this._cache, null, 2);
-            this._cacheFile.replace_contents(
-                contents,
-                null,
-                false,
-                Gio.FileCreateFlags.REPLACE_DESTINATION,
-                null
-            );
-        } catch (e) {
-            logError('Failed to save cache: ' + e);
-        }
+        return new Promise(resolve => {
+            try {
+                let contents = JSON.stringify(this._cache, null, 2);
+                this._cacheFile.replace_contents_async(
+                    contents,
+                    null,
+                    false,
+                    Gio.FileCreateFlags.REPLACE_DESTINATION,
+                    null,
+                    (file, res) => {
+                        try {
+                            file.replace_contents_finish(res);
+                        } catch (e) {
+                            logError('Failed to save cache: ' + e);
+                        } finally {
+                            resolve();
+                        }
+                    }
+                );
+            } catch (e) {
+                logError('Failed to save cache: ' + e);
+                resolve();
+            }
+        });
     }
 
-    add(appImage) {
+    async add(appImage) {
+        await this._cacheLoaded;
         this._cache[appImage.path] = appImage;
-        this._saveCache();
+        await this._saveCache();
     }
 
-    remove(appImagePath) {
+    async remove(appImagePath) {
+        await this._cacheLoaded;
         delete this._cache[appImagePath];
-        this._saveCache();
+        await this._saveCache();
     }
 
-    get(appImagePath) {
+    async get(appImagePath) {
+        await this._cacheLoaded;
         return this._cache[appImagePath];
     }
 
-    getAll() {
+    async getAll() {
+        await this._cacheLoaded;
         return this._cache;
     }
 });
