@@ -1,5 +1,6 @@
 import Adw from 'gi://Adw';
 import Gtk from 'gi://Gtk';
+import Gio from 'gi://Gio';
 import {ExtensionPreferences} from 'resource:///org/gnome/Shell/Extensions/js/extensions/prefs.js';
 
 
@@ -18,17 +19,36 @@ export default class AppImageManagerPreferences extends ExtensionPreferences {
         });
         group.add(monitoredDirectoryRow);
 
-        const monitoredDirectoryEntry = new Gtk.Entry({
-            text: settings.get_string('monitored-directory'),
-            hexpand: true,
+        const monitoredDirectoryButton = new Gtk.Button({
+            label: 'Select Monitored Directory',
         });
 
-        monitoredDirectoryRow.add_suffix(monitoredDirectoryEntry);
-        monitoredDirectoryRow.activatable_widget = monitoredDirectoryEntry;
+        const currentMonitoredDirectory = settings.get_string('monitored-directory');
+        if (currentMonitoredDirectory) {
+            monitoredDirectoryButton.set_label(currentMonitoredDirectory);
+        }
 
-        monitoredDirectoryEntry.connect('changed', () => {
-            settings.set_string('monitored-directory', monitoredDirectoryEntry.get_text());
+        monitoredDirectoryButton.connect('clicked', () => {
+            const dialog = new Gtk.FileDialog({
+                title: 'Select Monitored Directory',
+            });
+
+            dialog.select_folder(window, null, (dialog, res) => {
+                try {
+                    const folder = dialog.select_folder_finish(res);
+                    if (folder) {
+                        const path = folder.get_path();
+                        settings.set_string('monitored-directory', path);
+                        monitoredDirectoryButton.set_label(path);
+                    }
+                } catch (e) {
+                    logError(e, 'Failed to select folder');
+                }
+            });
         });
+
+        monitoredDirectoryRow.add_suffix(monitoredDirectoryButton);
+        monitoredDirectoryRow.activatable_widget = monitoredDirectoryButton;
 
         window.add(page);
     }

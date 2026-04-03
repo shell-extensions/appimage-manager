@@ -25,6 +25,7 @@ describe('LauncherService', () => {
     const mockFile = {
       query_exists: jest.fn(() => true),
       delete: jest.fn(),
+      get_path: jest.fn(() => '/home/user/.local/share/applications'),
     };
     Gio.File.new_for_path.mockReturnValue(mockFile);
 
