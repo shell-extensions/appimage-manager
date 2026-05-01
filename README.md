@@ -29,7 +29,7 @@ This GNOME Shell extension automatically integrates AppImage applications into t
 
 ## Configuration
 
-Access the extension preferences through GNOME Tweaks to change the monitored directory.
+Access the extension preferences through GNOME Extensions or Settings to change the monitored directory. You can now use a directory picker to select the folder instead of manually typing the path.
 
 ## Development
 

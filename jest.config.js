@@ -7,5 +7,6 @@ module.exports = {
   moduleNameMapper: {
     '^gi://Gio$': '<rootDir>/__mocks__/Gio.js',
     '^gi://GLib$': '<rootDir>/__mocks__/GLib.js',
+    '^gi://GObject$': '<rootDir>/__mocks__/GObject.js',
   },
 };
